@@ -18,6 +18,7 @@ from up.utils.model.bn_helper import (
 
 _norm_cfg = {
     'solo_bn': ('bn', torch.nn.BatchNorm2d),
+    '3d_bn': ('bn', torch.nn.BatchNorm3d),
     'freeze_bn': ('bn', FrozenBatchNorm2d),
     'caffe_freeze_bn': ('bn', CaffeFrozenBatchNorm2d),
     'gn': ('gn', GroupNorm),
