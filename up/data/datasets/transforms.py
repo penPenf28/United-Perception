@@ -12,6 +12,8 @@ from ..data_utils import (
     is_pil_image,
     is_tensor_image,
 )
+from scipy.ndimage import zoom
+import math
 
 __all__ = [
     'has_image',
@@ -24,7 +26,9 @@ __all__ = [
     'Augmentation',
     'ImageNormalize',
     'ImageToTensorInverse',
-    'CustomImageToTensor'
+    'CustomImageToTensor',
+    'Image3DResize',
+    'Image3DRandomCrop'
 ]
 
 
@@ -208,6 +212,53 @@ class CustomImageToTensor(Augmentation):
             flip_image = np.transpose(flip_image, (2, 0, 1))
             data['flip_image'] = torch.from_numpy(flip_image).float()
         return data
+
+
+@AUGMENTATION_REGISTRY.register('Image3DResize')
+class Image3DResize(Augmentation):
+    def _allow_format_change(self):
+        return True
+
+    # data['image']_size = (1,H,W,D), size represents the length you want to resize (H,W,D)
+    def augment(self, data, size):
+        output = copy.copy(data)
+        # scales represents Scaling factors for each dimension, 
+        scales = [1.0]
+        img = data.image
+        for i in range(len(size)):
+            scales.append(1.0 * size[i] / img.shape[i+1])
+        
+        # The order of the spline interpolation, default is 3. The order has to be in the range 0-5.
+        # Parameters for interpolation selection can be added later
+        img = zoom(img,scales,order=3)
+        output.image = img
+        return output
+
+@AUGMENTATION_REGISTRY.register('Image3DRandomCrop')
+class Image3DRandomCrop(Augmentation):
+    def _allow_format_change(self):
+        return True
+
+    def augment(self, data):
+        output = copy.copy(data)
+        img = data.image
+
+        img_height = img.shape[1]
+        img_width = img.shape[2]
+        img_depth = img.shape[3]
+
+        crop_img_height = math.ceil(img_height*2/3)
+        crop_img_width = math.ceil(img_width*2/3)
+        crop_img_depth = math.ceil(img_depth*2/3)
+
+        h = np.random.randint(0, img_height - crop_img_height)
+        w = np.random.randint(0, img_width - crop_img_width)
+        d = np.random.randint(0, img_depth - crop_img_depth)
+
+        img = img[:, h:h+crop_img_height, w:w+crop_img_height, d:d+crop_img_depth]
+
+        output.image = img
+        return output
 
 
 def build_partially_inverse_transformer(compose_transformer):
